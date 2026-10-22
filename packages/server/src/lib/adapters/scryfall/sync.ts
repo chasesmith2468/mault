@@ -1,12 +1,20 @@
 import { createInterface } from "node:readline";
-import { Readable } from "node:stream";
+import { Readable, Transform } from "node:stream";
 import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 import { createGunzip } from "node:zlib";
 import type { SyncSource, SyncSourceCard } from "../../interfaces/card-search";
 import { CARD_API_HEADERS } from "../../constants/card-search";
-import { SCRYFALL_VOLATILE_DATA_KEYS } from "../../constants/sync";
+import {
+  BULK_DOWNLOAD_LOG_EVERY_BYTES,
+  BULK_DOWNLOAD_LOG_EVERY_CARDS,
+  SCRYFALL_VOLATILE_DATA_KEYS,
+} from "../../constants/sync";
 import { SCRYFALL_DEFAULT_URL } from "../../constants/urls";
 import type { ScryfallBulkCard } from "../../interfaces/scryfall";
+
+function megabytes(bytes: number): string {
+  return `${Math.max(1, Math.round(bytes / 1_048_576))} MB`;
+}
 
 function cardImageUrl(
   raw: Pick<ScryfallBulkCard, "image_uris" | "card_faces">,
@@ -63,18 +71,40 @@ async function downloadBulkData(
   if (!bulkRes.ok || !bulkRes.body)
     throw new Error(`Bulk data download failed: ${bulkRes.status}`);
 
+  const expected = Number(bulkRes.headers.get("content-length"));
+  if (expected > 0) addLog(`Bulk file is ${megabytes(expected)}.`);
+
   const cards: SyncSourceCard[] = [];
   let seen = 0;
+  let received = 0;
+  let nextByteLog = BULK_DOWNLOAD_LOG_EVERY_BYTES;
+  const counter = new Transform({
+    transform(chunk: Buffer | Uint8Array, _encoding, callback) {
+      received += chunk.length;
+      if (received >= nextByteLog) {
+        nextByteLog += BULK_DOWNLOAD_LOG_EVERY_BYTES;
+        addLog(
+          expected > 0
+            ? `Downloaded ${megabytes(received)} of ${megabytes(expected)}.`
+            : `Downloaded ${megabytes(received)}.`,
+        );
+      }
+      callback(null, chunk);
+    },
+  });
   const lines = createInterface({
-    input: Readable.fromWeb(
-      bulkRes.body as NodeWebReadableStream<Uint8Array>,
-    ).pipe(createGunzip()),
+    input: Readable.fromWeb(bulkRes.body as NodeWebReadableStream<Uint8Array>)
+      .pipe(counter)
+      .pipe(createGunzip()),
     crlfDelay: Infinity,
   });
 
   for await (const line of lines) {
     if (!line) continue;
     seen++;
+    if (seen % BULK_DOWNLOAD_LOG_EVERY_CARDS === 0) {
+      addLog(`Read ${seen} cards from the bulk file.`);
+    }
     const raw = JSON.parse(line) as ScryfallBulkCard;
     if (lang && raw.lang !== lang) continue;
     cards.push({
