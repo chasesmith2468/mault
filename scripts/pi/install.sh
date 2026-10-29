@@ -150,7 +150,7 @@ sudo -u postgres psql -d mault -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EX
 
 pnpm install
 pnpm --filter @magic-vault/server build
-pnpm --filter @magic-vault/web build
+NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--max-old-space-size=4096" pnpm --filter @magic-vault/web build
 
 set -a
 # shellcheck disable=SC1091

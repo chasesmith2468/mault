@@ -156,7 +156,7 @@ bash scripts/pi/update.sh
 
 The updater downloads and builds the latest version of Mault, then restarts the app and camera services. Your settings, accounts, and saved cards stay in place. Any required database updates are applied automatically. When the update finishes, reload Mault in your browsers.
 
-Admins can also choose **Update Mault** in the update banner when a new version is available. Finish scanning, disconnect the sorter, and stop any database sync first. Keep the page open while the update runs, then choose **Refresh** when it reports success. If the app cannot reconnect, check `${XDG_STATE_HOME:-$HOME/.local/state}/mault/update.log` on the Pi.
+On Pi installations, the update banner shows the terminal command instead of starting an update in the browser. Finish scanning, disconnect the sorter, and stop any database sync, then run `cd ~/mault && bash scripts/pi/update.sh` in a terminal on the Pi. Enter your sudo password if prompted and refresh the browser after the script completes. Dependency setup runs before services are stopped. Pi web builds use a 4 GiB Node heap allowance; runtime services keep their normal settings.
 
 If you have changed or added files in the installation folder, the updater stops before updating so it does not overwrite your work. If an update fails after stopping the app, resolve the reported error and run the same command again. Check the release instructions for any additional system requirements.
 

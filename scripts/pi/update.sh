@@ -109,6 +109,10 @@ main() {
     exit 1
   fi
 
+  # Prepare dependencies while the currently installed app is still running.
+  # sudo failures must not take the app offline.
+  git merge --ff-only '@{upstream}'
+  pi_ensure_toolchain "$ROOT"
   pi_ensure_user_bus
   services=(mault-web.service mault-api.service mault-camera.service)
   update_incomplete() {
@@ -118,11 +122,9 @@ main() {
 
   echo "[update] Stopping Mault. Finish any scan before running this updater."
   systemctl --user stop "${services[@]}"
-  git merge --ff-only '@{upstream}'
-  pi_ensure_toolchain "$ROOT"
   pnpm install --frozen-lockfile
   pnpm --filter @magic-vault/server build
-  pnpm --filter @magic-vault/web build
+  NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--max-old-space-size=4096" pnpm --filter @magic-vault/web build
 
   node "$ROOT/scripts/pi/install-services.mjs" "$ROOT"
   systemctl --user daemon-reload

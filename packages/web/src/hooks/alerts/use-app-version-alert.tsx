@@ -39,27 +39,26 @@ export function useAppVersionAlert(): AppAlert | null {
     id: "app-version-outdated",
     severity: failed ? "danger" : succeeded ? "info" : "warning",
     icon: IconAlertTriangle,
-    message:
-      update.error ??
-      (update.busy
-        ? t("appVersion.updating")
-        : failed
-          ? (update.status?.state.message ?? t("appVersion.updateFailed"))
-          : succeeded
-            ? t("appVersion.updateSucceeded")
-            : t("appVersion.outdatedBanner")),
+    message: (
+      <>
+        {update.error ??
+          (update.busy
+            ? t("appVersion.updating")
+            : failed
+              ? (update.status?.state.message ?? t("appVersion.updateFailed"))
+              : succeeded
+                ? t("appVersion.updateSucceeded")
+                : t("appVersion.outdatedBanner"))}
+        {piHost && isAdmin && (available || failed) && !succeeded && !update.busy && (
+          <span className="block">
+            {t("appVersion.terminalUpdate")} {" "}
+            <code className="select-all">cd ~/mault &amp;&amp; bash scripts/pi/update.sh</code>
+          </span>
+        )}
+      </>
+    ),
     actions: (
       <>
-        {piHost && isAdmin && (available || failed) && !succeeded && (
-          <Button
-            variant="outline"
-            className={ALERT_BANNER_ACTION_CLASS}
-            disabled={update.busy}
-            onClick={() => void update.start()}
-          >
-            {t("appVersion.updateButton")}
-          </Button>
-        )}
         {!update.busy && (
           <Button
             variant="outline"
